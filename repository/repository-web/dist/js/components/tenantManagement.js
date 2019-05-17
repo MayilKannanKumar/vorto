@@ -58,6 +58,26 @@ repositoryControllers.controller("tenantManagementController",
                 $rootScope.init();
             });
         };
+	$scope.createTenant = function(tenant) {
+            var modalInstance = $uibModal.open({
+                animation: true,
+                templateUrl: "webjars/repository-web/dist/partials/admin/createTenant.html",
+                controller: "createOrUpdateTenantController",
+                resolve: {
+                    tenant: function () {
+                        return tenant;
+                    },
+                    tenants: function() {
+                    	return $scope.tenants;
+                    }
+                }
+            });
+            
+            modalInstance.result.finally(function(result) {
+                $scope.getTenants();
+                $rootScope.init();
+            });
+        };
         
         $scope.manageUsers = function(tenant) {
         	var modalInstance = $uibModal.open({
@@ -98,7 +118,7 @@ repositoryControllers.controller("tenantManagementController",
         }
         
         $scope.deleteTenant = function(tenant) {
-        	var dialog = dialogConfirm($scope, "Are you sure you want to remove tenant '" + tenant.tenantId + "'?", ["Confirm", "Cancel"]);
+        	var dialog = dialogConfirm($scope, "Are you sure you want to remove this repository " + "?", ["Confirm", "Cancel"]);
         	
         	dialog.setCallback("Confirm", function() {
         		$http.delete("./rest/tenants/" + tenant.tenantId)
@@ -125,11 +145,22 @@ repositoryControllers.directive("tenantManagement", function() {
 repositoryControllers.controller("createOrUpdateTenantController", 
     ["$rootScope", "$scope", "$uibModal", "$uibModalInstance", "$http", "tenant", "tenants",
     function($rootScope, $scope, $uibModal, $uibModalInstance, $http, tenant, tenants) {
+	
+	
         
         $scope.tenant = tenant;
         $scope.mode = tenant.edit ? "Update" : "Create";
         $scope.originalNamespaces = tenant.namespaces.slice();
         $scope.errorMessage = "";
+		var defaultValue = 'vorto.private.';
+        
+       	//$scope.user = user;
+        $scope.tenant.createNameSpaceId = defaultValue;
+        $scope.checkDefaultValue = function() {
+            if (!$scope.tenant.createNameSpaceId || defaultValue !== $scope.tenant.createNameSpaceId.substring(0, 14)) {
+                $scope.tenant.createNameSpaceId = defaultValue;
+            }
+        };
         
         $scope.isCreatingOrUpdating = false;
         
@@ -139,6 +170,15 @@ repositoryControllers.controller("createOrUpdateTenantController",
         
         $scope.createOrUpdateTenant = function() {
         	$scope.isCreatingOrUpdating = true;
+			if($scope.mode == "Create"){
+				$scope.tenant.tenantId = Math.random();
+				$scope.tenant.namespaces.push($scope.tenant.createNameSpaceId);
+                    if ($scope.tenant.namespaces.length == 1) {
+                    	$scope.tenant.defaultNamespace = $scope.tenant.namespaces[0]; 
+                    }
+				$scope.tenant.admins.push($rootScope.displayName);
+			}
+			$scope.tenant.authenticationProvider="GITHUB";
             $http.put("./rest/tenants/" + $scope.tenant.tenantId, {
                 "tenantAdmins" : $scope.tenant.admins,
                 "authenticationProvider" : $scope.tenant.authenticationProvider,
@@ -157,7 +197,8 @@ repositoryControllers.controller("createOrUpdateTenantController",
         };
         
         $scope.isInvalid = function() {
-        	return $scope.tenant.tenantId === '' || 
+        	return 
+				//$scope.tenant.tenantId === '' || 
                 $scope.tenant.admins.length <= 0 || 
                 $scope.tenant.namespaces.length <= 0 ||
                 $scope.tenant.defaultNamespace === '';
@@ -301,6 +342,7 @@ repositoryControllers.controller("createOrUpdateTenantController",
             
             modalInstance.result.then(dialogSettings.successFn);
         };
-        
     }
 ]);
+ 
+
